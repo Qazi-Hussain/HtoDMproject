@@ -1,0 +1,316 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2580
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\csgray\c0;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww28600\viewh18000\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs22 \cf2 \CocoaLigature0 #ifndef shistmakercopyv2_c\
+#define shistmakercopyv2_c\
+\
+\
+#include "TFile.h"\
+#include "TTree.h"\
+#include "TRandom3.h"\
+#include "TMath.h"\
+#include "TLorentzVector.h"\
+#include "TSystem.h"\
+#include "TH1F.h"\
+#include "TH2F.h"\
+//#include "TMVA/Reader.h"\
+#include "HistSvc.cxx"\
+#include <iostream>\
+#include <vector>\
+#include <map>\
+\
+\
+using namespace std;\
+const double PI = 3.141592653589793238463;\
+\
+using std::cout;\
+\
+//lumis\
+static const float Lumi = 5e6 ;// our target luminosity 5 ab-1\
+\
+  //cross-sections in pb\
+\
+static const float WW_xsec = 16.4385;\
+static const float ZZ_xsec = 1.35899;\
+static const float ZH_xsec = 0.201037;\
+float BrHinv = 1.0;\
+\
+\
+TString outdir="hists";\
+TFile* fileout;\
+//Gloabal final state variables\
+float weight;\
+\
+float Mmiss;\
+float Mvis;\
+bool isHiggsInv;\
+\
+\
+int n_el;\
+int n_mu;\
+int n_pho;\
+int n_jet;\
+\
+\
+TLorentzVector lep0;\
+TLorentzVector lep1;\
+int qlep0;\
+int qlep1;\
+TLorentzVector pho0;\
+TLorentzVector jet0;\
+TLorentzVector jet1;\
+TLorentzVector alljet;\
+bool btag0;\
+bool btag1;\
+\
+TString chan=""; //The channel for the Z decay: ee,mm,qq,bq,bb\
+TString mc=""; //The MC we are running on WW, ZZ, ZH\
+float mZ;\
+\
+void runovertree()\
+//Run over tree\
+\{\
+  TString inputFileName="";\
+  histsvc=new HistSvc();\
+  if(mc=="WW") inputFileName="tuplesv2/p8_ee_WW_ecm240v2T.root";\
+  else if(mc=="ZZ") inputFileName="tuplesv2/p8_ee_ZZ_ecm240v2T.root";\
+  else if(mc=="ZH") inputFileName="tuplesv2/p8_ee_ZH_ecm240v2T.root";\
+   \
+  //Open file\
+  TFile* inputFile=new TFile(inputFileName);\
+  std::cout <<" Opening file " << inputFileName << " " << inputFile <<std::endl;\
+  if(inputFile==0) \{\
+    std::cout <<" Can't open file " <<std::endl;\
+    return;\
+  \}\
+//Open Tree\
+  TTree* inputTree=(TTree*)inputFile->Get("events");\
+  std::cout <<" Trying to use SetBranchAddress  using tree " << inputTree<<std::endl;\
+\
+  if(inputTree==0) \{\
+    std::cout <<" Can't open tree " <<std::endl;\
+    return;\
+  \}\
+  //Declare which branches from the tree we want to read\
+  vector<float> *vec_el_e=0;\
+  inputTree->SetBranchStatus("selected_electrons_e", kTRUE); inputTree->SetBranchAddress("selected_electrons_e", &vec_el_e) ;    \
+  vector<float> *vec_el_pt=0;\
+  inputTree->SetBranchStatus("selected_electrons_pt", kTRUE); inputTree->SetBranchAddress("selected_electrons_pt", &vec_el_pt) ;    \
+  vector<float> *vec_el_eta=0;\
+  inputTree->SetBranchStatus("selected_electrons_eta", kTRUE); inputTree->SetBranchAddress("selected_electrons_eta", &vec_el_eta) ;    \
+  vector<float> *vec_el_phi=0;\
+  inputTree->SetBranchStatus("selected_electrons_phi", kTRUE); inputTree->SetBranchAddress("selected_electrons_phi", &vec_el_phi) ;    \
+  vector<float> *vec_el_q=0;\
+  inputTree->SetBranchStatus("selected_electrons_charge", kTRUE); inputTree->SetBranchAddress("selected_electrons_charge", &vec_el_q) ;    \
+\
+  vector<float> *vec_mu_e=0;\
+  inputTree->SetBranchStatus("selected_muons_e", kTRUE); inputTree->SetBranchAddress("selected_muons_e", &vec_mu_e) ;    \
+  vector<float> *vec_mu_pt=0;\
+  inputTree->SetBranchStatus("selected_muons_pt", kTRUE); inputTree->SetBranchAddress("selected_muons_pt", &vec_mu_pt) ;    \
+  vector<float> *vec_mu_eta=0;\
+  inputTree->SetBranchStatus("selected_muons_eta", kTRUE); inputTree->SetBranchAddress("selected_muons_eta", &vec_mu_eta) ;    \
+  vector<float> *vec_mu_phi=0;\
+  inputTree->SetBranchStatus("selected_muons_phi", kTRUE); inputTree->SetBranchAddress("selected_muons_phi", &vec_mu_phi) ;    \
+  vector<float> *vec_mu_q=0;\
+  inputTree->SetBranchStatus("selected_muons_charge", kTRUE); inputTree->SetBranchAddress("selected_muons_charge", &vec_mu_q) ;    \
+\
+\
+\
+//   vector<float> *vec_pho_e=0;\
+//   inputTree->SetBranchStatus("photons_e", kTRUE); inputTree->SetBranchAddress("photons_e", &vec_pho_e) ;    \
+//   vector<float> *vec_pho_pt=0;\
+//   inputTree->SetBranchStatus("photons_pt", kTRUE); inputTree->SetBranchAddress("photons_pt", &vec_pho_pt) ;    \
+//   vector<float> *vec_pho_eta=0;\
+//   inputTree->SetBranchStatus("photons_eta", kTRUE); inputTree->SetBranchAddress("photons_eta", &vec_pho_eta) ;    \
+//   vector<float> *vec_pho_phi=0;\
+//   inputTree->SetBranchStatus("photons_phi", kTRUE); inputTree->SetBranchAddress("photons_phi", &vec_pho_phi) ;    \
+\
+\
+  vector<float> *vec_jet_e=0;\
+  TString jettyp="jets_val_";\
+  //  TString jettyp="jets_ee_kt_";\
+  //Not in all ntuples yet\
+  inputTree->SetBranchStatus(jettyp+"e", kTRUE); inputTree->SetBranchAddress(jettyp+"e", &vec_jet_e) ;    \
+  vector<float> *vec_jet_px=0;\
+  inputTree->SetBranchStatus(jettyp+"px", kTRUE); inputTree->SetBranchAddress(jettyp+"px", &vec_jet_px) ;    \
+  vector<float> *vec_jet_py=0;\
+  inputTree->SetBranchStatus(jettyp+"py", kTRUE); inputTree->SetBranchAddress(jettyp+"py", &vec_jet_py) ;\
+  vector<float> *vec_jet_pz=0;\
+  inputTree->SetBranchStatus(jettyp+"pz", kTRUE); inputTree->SetBranchAddress(jettyp+"pz", &vec_jet_pz) ;    \
+  vector<bool> *vec_jet_btag=0;\
+  inputTree->SetBranchStatus(jettyp+"btag", kTRUE); inputTree->SetBranchAddress(jettyp+"btag", &vec_jet_btag) ;   \
+\
+float Mvis = 0;\
+  inputTree->SetBranchStatus("Mvis",kTRUE); inputTree->SetBranchAddress("Mvis",&Mvis);\
+  float Mvis_px = 0;\
+  inputTree->SetBranchStatus("Mvis_px",kTRUE); inputTree->SetBranchAddress("Mvis_px",&Mvis_px);\
+  float Mvis_py = 0;\
+  inputTree->SetBranchStatus("Mvis_py",kTRUE); inputTree->SetBranchAddress("Mvis_py",&Mvis_py);\
+  float Mvis_pz = 0;\
+  inputTree->SetBranchStatus("Mvis_pz",kTRUE); inputTree->SetBranchAddress("Mvis_pz",&Mvis_pz);\
+  float Mvis_e = 0;\
+  inputTree->SetBranchStatus("Mvis_e",kTRUE); inputTree->SetBranchAddress("Mvis_e",&Mvis_e);\
+\
+\
+\
+\
+\
+\
+\
+\
+  bool MC_isHZZ=false;\
+  inputTree->SetBranchStatus("MC_isHZZ", kTRUE); inputTree->SetBranchAddress("MC_isHZZ", &MC_isHZZ) ;\
+  isHiggsInv=false;\
+  inputTree->SetBranchStatus("isHiggsInv", kTRUE); inputTree->SetBranchAddress("isHiggsInv", &isHiggsInv) ;\
+\
+    \
+  std::cout <<" After sstting of branches" <<std::endl;\
+  //Number of events in Tree\
+  int nEntries = inputTree->GetEntries();\
+  \
+  float xsec= (mc=="ZH") ?  ZH_xsec : (mc=="ZZ") ? ZZ_xsec : WW_xsec;\
+\
+  weight = xsec * Lumi / nEntries;\
+\
+ \
+\
+  cout <<" Number of Entries on Tree " <<nEntries <<std::endl;\
+  //Complicated histogram name needed if we want to fit with HistFitter\
+  // TString mcuse= isHiggsInv ? "ZHInv" : mc;\
+  //TString pref="h"+mcuse+"_Nom_SR"+chan+"_obs_";\
+\
+  //Now iterate over tree\
+  //Loop over events on tree\
+  for (int iEntry=0;iEntry<nEntries;iEntry++) \{\
+    \
+    //    cout <<"beginning of loop" <<std::endl;\
+    if (iEntry % 100000 ==0) cout << " Running on event: " << iEntry << " of " << nEntries  << std::endl;\
+    //Read the braches from the tree\
+    inputTree->GetEntry(iEntry);\
+    \
+    TString mcuse= isHiggsInv ? "ZHInv" : mc;\
+    TString pref="h"+mcuse+"_Nom_SR"+chan+"_obs_";\
+\
+\
+    \
+    int i=0;\
+    n_el=vec_el_e->size();\
+    n_mu=vec_mu_e->size();\
+    n_jet=vec_jet_e->size();\
+    \
+// CMS of collision \
+\
+ static const float Ecm = 240;\
+\
+    \
+\
+    //Fill histogram with energy  of elec\
+    if(n_el>1) \{\
+      float elE=vec_el_e->at(0) ;\
+      float elpt=vec_el_pt->at(0);\
+      float elphi=vec_el_phi->at(0);\
+      float eleta=vec_el_eta->at(0);\
+      //second electron \
+      float pel_E =vec_el_e->at(1);\
+      float pel_pt =vec_el_pt->at(1);\
+      float pel_phi = vec_el_phi->at(1);\
+      float pel_eta = vec_el_eta->at(1);\
+      //histsvc->BookFillHist((pref+"Eel").Data(),120,0,120,elE,weight);\
+    \
+      //momenta of first electron\
+      float el_px = elpt*cos(elphi);\
+      float el_py = elpt*sin(elphi);\
+      float el_pz = elpt*sinh(eleta);\
+      float el_mag_P = elpt*cosh(eleta);\
+      //momenta of second electron\
+      float pel_px = pel_pt*cos(pel_phi);\
+      float pel_py = pel_pt*sin(pel_phi);\
+      float pel_pz = pel_pt*sinh(pel_eta);\
+      float pel_mag_P = pel_pt*cosh(pel_eta);\
+      // z boson\
+      float z_mag_P = sqrt(pow(el_px + pel_px,2) + pow(el_py + pel_py,2) + pow(el_pz + pel_pz,2));\
+      float elpel_E = pow(el_mag_P + pel_mag_P,2);\
+      float z_mass = sqrt(elpel_E - pow(z_mag_P,2));\
+      //histsvc->BookFillHist((pref+"ZMass").Data(),120,80,120,z_mass,weight);\
+      \
+      //Invis Mass with electrons compatible with z mass\
+     \
+      float Mvis_P = sqrt(pow(Mvis_px,2)+pow(Mvis_py,2)+pow(Mvis_pz,2));\
+      float Minvis = sqrt(pow(Ecm-Mvis_e,2) - pow(Mvis_P,2));\
+      if (z_mass>86 && z_mass<96) \{\
+        histsvc->BookFillHist((pref+"Mass_invis").Data(),120,120,150,Minvis,weight);\
+      \} \
+// Plotting the stacked events - done in another file\
+\
+void plot()\{\
+  TFile* fil = new TFile("hists/hists.root");\
+  THStack* hs = new THStack("hs","Stacked Events");\
+  TH1* h1st = (TH1*) fil->Get("hZHInv_Nom_SR_obs_Mass_invis");\
+  h1st->SetFillColor(kRed);\
+  h1st->SetMarkerStyle(21);\
+  h1st->SetMarkerColor(kRed);\
+  // h1st->Scale(100);\
+  //hs->Add(h1st);\
+  //cout<<"ZHInv Nbins = "<<h1st->GetNbinsX()<<endl;\
+  cout<<"ZHInv Events = "<<""<< h1st->Integral(0,120)<< endl;\
+  TH1* h2st = (TH1*) fil->Get("hWW_Nom_SR_obs_Mass_invis");\
+  h2st->SetFillColor(kBlue);\
+  h2st->SetMarkerStyle(21);\
+  h2st->SetMarkerColor(kBlue);\
+  hs->Add(h2st);\
+  // cout<<"WW Nbins= "<<h2st->GetNbinsX()<< endl;\
+  cout<<"WW Events = "<<"" <<h2st->Integral(70,87)<< endl;\
+  TH1* h3st = (TH1*) fil->Get("hZZ_Nom_SR_obs_Mass_invis");\
+  h3st->SetFillColor(kGreen);\
+  h3st->SetMarkerStyle(21);\
+  h3st->SetMarkerColor(kGreen);\
+  hs->Add(h3st);\
+  //cout<<"ZZ Nbins = " << h3st->GetNbinsX()<< endl;\
+  cout<< "ZZ Events = " <<""<< h3st->Integral(70,87)<< endl;\
+  hs->Draw("hs");\
+  //h1st->Draw("h1st,same");\
+  hs->GetXaxis()->SetTitle("GeV");\
+  hs->GetYaxis()->SetTitle("N");\
+  //hs->Draw("hs");\
+  h1st->Draw("h1st,same");\
+  auto legend = new TLegend(0.9,0.7,0.48,0.9);\
+  legend->SetHeader("Legend","C");\
+  legend->AddEntry(h1st, "hZHInv MC (Unscaled)");\
+  legend->AddEntry(h2st, "hWW MC");\
+  legend->AddEntry(h3st, "hZZ MC");\
+  legend->Draw();\
+\
+  //ZHInv - Signal Events \
+  static const  float ZHinv_Events = 22.5161; // Unscaled \
+\
+  //Number of bins in all MC\
+  static const float  N_bins = 120;\
+  //Histogram Range\
+  static const float H_range = 150-80; //Histogram range for ZZ, WW\
+\
+  //Bin width\
+  float Bin_width = H_range/N_bins;\
+  //Bin range \
+  float low_bin = 120*Bin_width; // ZHinv range from 120-130 GeV \
+  float up_bin = 130*Bin_width;\
+\
+  cout<<"bin width = "<< Bin_width << endl;\
+  cout<<"bin range for integral = "<< low_bin << " < x < " << up_bin << endl;\
+\
+  // WW - Background Events\
+  float WWB_Events = h2st->Integral(low_bin,up_bin);\
+  // ZZ - Background Events\
+  float ZZB_Events = h3st->Integral(low_bin,up_bin);\
+\
+  //\
+  float B_Events = WWB_Events + ZZB_Events; // Total Background\
+  float S_Events = ZHinv_Events; //Signal \
+  float N_Events = S_Events + B_Events; //Total Events \
+  float S_Error = sqrt(N_Events)/S_Events; // Error on Signal \
+  cout<<"Error on S = "<< S_Error << endl;\
+\
+}
